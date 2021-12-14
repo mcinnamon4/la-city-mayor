@@ -6,26 +6,31 @@ from flair.models import TextClassifier
 from flair.data import Sentence
 
 search_url = "https://api.twitter.com/2/tweets/search/recent"
-# filters for tweets within the radius of Los Angeles, removes retweets and advertisements
-# has:geo point_radius:[-118.692601 34.0201598 25mi] -is:retweet -is:nullcast
-query_params = {'query': '(Karen Bass) OR (Joe Buscaino) OR (Kevin de Leon) OR (Mike Feuer)',
-    "expansions":"author_id",
-    "tweet.fields": "created_at,geo",
-    "user.fields":"name,username,location,public_metrics",
-    "max_results":10}
 
 location_filter = ['los angeles', 'la', 'california', 'ca', 'cali']
+
+def create_query_params(candidates, max_results):
+    search_string = ""
+    for c in candidates:
+        search_string += "(" + c + ")" + " OR "
+    search_string = search_string[:-4]
+    return {'query': search_string,
+        "expansions":"author_id",
+        "tweet.fields": "created_at,geo",
+        "user.fields":"name,username,location,public_metrics",
+        "max_results":max_results}
+
 
 def create_bearer_token(data):
     return data["search_tweets_api"]["bearer_token"]
 
 def process_yaml():
-    with open("config.yaml") as file:
+    with open("../config.yaml") as file:
         return yaml.safe_load(file)
 
-def twitter_auth_and_connect(bearer_token, url):
+def twitter_auth_and_query(bearer_token, candidates, max_results):
     headers = {"Authorization": "Bearer {}".format(bearer_token)}
-    response = requests.request("GET", url, headers=headers, params=query_params)
+    response = requests.request("GET", search_url, headers=headers, params=create_query_params(candidates, max_results))
     return response.json()
 
 # returns the list of users self-identifying as in California
@@ -75,17 +80,3 @@ def sentiment_read(text):
     sentence = Sentence(text)
     classifier.predict(sentence)
     return sentence.labels
-
-
-def main():
-    data = process_yaml()
-    bearer_token = create_bearer_token(data)
-    res_json = twitter_auth_and_connect(bearer_token, search_url)
-    users_collected = res_json['includes']['users']
-    tweets_collected = res_json['data']
-    filtered_users_ids, filtered_users_dict = filter_local_users(users_collected)
-    filtered_tweets = filter_local_tweets(filtered_users_ids, tweets_collected)
-    print(tweets_clean(filtered_tweets, filtered_users_dict))
-
-if __name__ == "__main__":
-    main()
