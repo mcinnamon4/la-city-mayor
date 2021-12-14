@@ -2,6 +2,8 @@ import requests
 import json
 import ast
 import yaml
+from flair.models import TextClassifier
+from flair.data import Sentence
 
 search_url = "https://api.twitter.com/2/tweets/search/recent"
 # filters for tweets within the radius of Los Angeles, removes retweets and advertisements
@@ -67,8 +69,12 @@ def tweets_clean(tweets, users_dict):
     return tweets_with_user
 
 # adds a sentiment score to each tweet
+# using nlp package flair
 def sentiment_read(text):
-    return 0.3
+    classifier = TextClassifier.load('en-sentiment')
+    sentence = Sentence(text)
+    classifier.predict(sentence)
+    return sentence.labels
 
 
 def main():
